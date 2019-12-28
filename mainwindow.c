@@ -194,61 +194,8 @@ static gboolean graph_draw (GtkWidget *widget, cairo_t *cr, gpointer user_data)
 	return FALSE;
 }
 
-guint make_audio_handle;
 int inputlength = 0;
 int16_t *input;
-
-static gboolean make_audio_callback (gpointer user_data)
-{
-#if 0
-	int i;
-	int smallestvalue=65536;
-	int smallestat = -1;
-	int16_t *output;
-	size_t size;
-
-	int count;
-
-	if (sidpulse_prewrite((void *)&output, &size)) return TRUE;
-	if (!size) return TRUE;
-
-	count = size/4;
-
-	if (count > inputlength)
-	{
-		inputlength = count;
-		input = realloc (input, inputlength*2);
-	}
-
-	sid_instance_clock (input, count);
-
-	for (i=0; i< count; i++)
-	{
-		output[i<<1] = input[i];
-		output[(i<<1)+1] = input[i];
-
-		if (i + SAMPLES_N < (count))
-		{
-			if (input[i] < smallestvalue)
-			{
-				smallestvalue = input[i];
-				smallestat = i;
-			}
-		}
-
-	}
-
-	if (smallestat >= 0)
-	{
-		memcpy (samples, input + smallestat, SAMPLES_N*sizeof(int16_t));
-
-		gtk_widget_queue_draw (graph);
-	}
-
-	sidpulse_write (output, size);
-#endif
-	return TRUE;
-}
 
 void mainwindow_getsound (void *data, size_t bytes)
 {
@@ -298,8 +245,7 @@ void mainwindow_getsound (void *data, size_t bytes)
 static gboolean window_delete (GtkWidget *object,
                                gpointer   userpointer)
 {
-	g_source_remove (make_audio_handle);
-	make_audio_handle = 0;
+	sidpulse_done ();
 
 	return FALSE;
 }
@@ -314,8 +260,6 @@ activate (GtkApplication* app,
 	sidpulse_init ();
 
 	sid_instance_init ();
-
-	make_audio_handle = g_timeout_add (/*1000/50*/ 35, make_audio_callback, NULL);
 
 	AttackModel = gtk_list_store_new (1, G_TYPE_STRING);
 	{
