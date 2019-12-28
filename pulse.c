@@ -62,8 +62,6 @@ void start_stream (void)
 			return;
 		}
 	}
-
-	//pa_stream_trigger (pas, 0, 0);
 }
 
 // This callback gets called when our context changes state.  We really only
@@ -120,12 +118,6 @@ void sidpulse_done (void)
 {
 	if (pas)
 	{
-		int err = 0;
-		if (pa_stream_drop (pas))
-		{
-			fprintf (stderr, "sidpulse_done: pa_stream_drop() failed\n");
-		}
-
 		if (pa_stream_disconnect (pas))
 		{
 			fprintf (stderr, "sidpulse_done: pa_stream_disconnect() failed\n");
