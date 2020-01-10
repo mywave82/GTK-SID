@@ -1,7 +1,7 @@
 CC=gcc
 CXX=g++
-CFLAGS=-g `pkg-config gtk+-3.0 cairo libpulse-mainloop-glib --cflags`
-CXXFLAGS=-g
+CFLAGS=-g `pkg-config gtk+-3.0 cairo libpulse-mainloop-glib --cflags` -O2
+CXXFLAGS=-g -O2
 LD=g++
 LIBS=-g `pkg-config gtk+-3.0 cairo libpulse-mainloop-glib --libs` -lm
 
