@@ -172,7 +172,7 @@ static gboolean graph_draw (GtkWidget *widget, cairo_t *cr, gpointer user_data)
 
 	/* Change the transformation matrix */
 	cairo_scale (cr, (gdouble)width/SAMPLES_N, ((gdouble)height)/-(256+5.0));
-	cairo_translate (cr, 0, -128.0+2.5);
+	cairo_translate (cr, 0, -128.0-2.5);
 
 	/* Determine the data points to calculate (ie. those in the clipping zone */
 	//cairo_device_to_user_distance (cr, &dx, &dy);
@@ -183,10 +183,10 @@ static gboolean graph_draw (GtkWidget *widget, cairo_t *cr, gpointer user_data)
 
 	cairo_set_source_rgb (cr, 0.0, 1.0, 0.0);
 
-	cairo_move_to (cr, 0.0, (gdouble)samples[0]/SAMPLES_N);
+	cairo_move_to (cr, 0.0, (gdouble)samples[0]/256);
 	for (i=0; i < SAMPLES_N; i++)
 	{
-		cairo_line_to (cr, i, (gdouble)samples[i]/SAMPLES_N);
+		cairo_line_to (cr, i, (gdouble)samples[i]/256);
 	}
 
 	cairo_stroke (cr);
@@ -194,50 +194,48 @@ static gboolean graph_draw (GtkWidget *widget, cairo_t *cr, gpointer user_data)
 	return FALSE;
 }
 
-int inputlength = 0;
-int16_t *input;
+#define INPUTLEN 1024
+int16_t input[INPUTLEN];
+int inputpos = INPUTLEN;
 
 void mainwindow_getsound (void *data, size_t bytes)
 {
-	int i;
-	int smallestvalue=65536;
-	int smallestat = -1;
 	int16_t *output = data;
-	size_t size;
 
-	int count;
-
-	count = bytes/4;
-
-	if (count > inputlength)
+	while (bytes)
 	{
-		inputlength = count;
-		input = realloc (input, inputlength*2);
-	}
-
-	sid_instance_clock (input, count);
-
-	for (i=0; i< count; i++)
-	{
-		output[i<<1] = input[i];
-		output[(i<<1)+1] = input[i];
-
-		if (i + SAMPLES_N < (count))
+		if (inputpos >= INPUTLEN)
 		{
-			if (input[i] < smallestvalue)
+			int i;
+			int smallestvalue=65536;
+			int smallestat = -1;
+
+			sid_instance_clock (input, INPUTLEN);
+			inputpos = 0;
+			//write (1, input, INPUTLEN * 2);
+
+			for (i=0; i < (INPUTLEN - SAMPLES_N); i++)
 			{
-				smallestvalue = input[i];
-				smallestat = i;
+				if (input[i] < smallestvalue)
+				{
+					smallestvalue = input[i];
+					smallestat = i;
+				}
+			}
+
+			if (smallestat >= 0)
+			{
+				memcpy (samples, input + smallestat, SAMPLES_N*sizeof(int16_t));
+
+				gtk_widget_queue_draw (graph);
 			}
 		}
 
-	}
+		output[1] = output[0] = input [inputpos];
 
-	if (smallestat >= 0)
-	{
-		memcpy (samples, input + smallestat, SAMPLES_N*sizeof(int16_t));
-
-		gtk_widget_queue_draw (graph);
+		output += 2;
+		bytes -= 4;
+		inputpos++;
 	}
 }
 
@@ -245,7 +243,7 @@ void mainwindow_getsound (void *data, size_t bytes)
 static gboolean window_delete (GtkWidget *object,
                                gpointer   userpointer)
 {
-	sidpulse_done ();
+	pulse_done ();
 
 	return FALSE;
 }
@@ -257,7 +255,7 @@ activate (GtkApplication* app,
 	GtkWidget *window, *thegrid;
 	int i;
 
-	sidpulse_init ();
+	pulse_init ();
 
 	sid_instance_init ();
 
@@ -542,7 +540,8 @@ activate (GtkApplication* app,
 	gtk_grid_attach (GTK_GRID (thegrid), graph, 2, 0, 1, 3);
 	g_signal_connect (graph, "draw", G_CALLBACK (graph_draw), NULL);
 
-	gtk_widget_set_size_request (graph, 256, 256);
+	gtk_widget_set_size_request (graph, 512, 256);
+	gtk_widget_set_vexpand (graph, FALSE);
 	
 	gtk_widget_show_all (window);
 
@@ -576,7 +575,7 @@ main (int    argc,
 
 	sid_instance_done();
 
-	sidpulse_done ();
+	pulse_done ();
 
 	return status;
 }
